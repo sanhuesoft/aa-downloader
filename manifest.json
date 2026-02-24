@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "Anna's Fast Slow Downloader",
+  "name": "Anna's Archive Downloader",
   "version": "1.0",
   "description": "Automatiza el proceso de descarga en Anna's Archive",
   "permissions": ["storage", "activeTab", "scripting"],
