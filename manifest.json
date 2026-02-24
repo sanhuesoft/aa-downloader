@@ -1,0 +1,23 @@
+{
+  "manifest_version": 3,
+  "name": "Anna's Fast Slow Downloader",
+  "version": "1.1",
+  "description": "Automatiza el proceso de descarga en Anna's Archive",
+  "permissions": ["storage", "activeTab"],
+  "action": {},
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+  {
+    "matches": [
+      "*://*.annas-archive.org/*",
+      "*://*.annas-archive.li/*",
+      "*://*.annas-archive.se/*",
+      "*://*.annas-archive.gs/*",
+      "*://*.annas-archive.is/*"
+    ],
+    "js": ["content.js"]
+  }
+]
+}
