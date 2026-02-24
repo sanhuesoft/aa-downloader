@@ -1,54 +1,125 @@
-console.log("🚀 Anna's Archive Helper: Buscador de 'no waitlist' activo.");
+// --- CONFIGURACIÓN Y ESTILOS ---
+const UI_ID = "aa-helper-ui";
 
-// --- PASO 2: BUSCAR EL BOTÓN FINAL ---
-const buscarYDescargar = () => {
-    console.log("Buscando botón 'Download now'...");
-    const links = document.querySelectorAll('a');
-    // Buscamos el link que contiene el texto del emoji y Download now
-    const downloadLink = Array.from(links).find(a => 
-        a.textContent.trim().toLowerCase().includes("download now")
-    );
-
-    if (downloadLink) {
-        console.log("¡Botón encontrado! Iniciando descarga...");
-        chrome.storage.local.set({ procesando: false });
-        window.location.href = downloadLink.href;
-    } else {
-        console.log("Esperando a que aparezca el botón...");
-        setTimeout(buscarYDescargar, 1500);
+const injectStyles = () => {
+  if (document.getElementById("aa-helper-style")) return;
+  const style = document.createElement("style");
+  style.id = "aa-helper-style";
+  style.innerHTML = `
+    #${UI_ID} {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      background: #1a1a1a;
+      color: white;
+      padding: 15px;
+      border-radius: 12px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+      z-index: 999999;
+      font-family: system-ui, -apple-system, sans-serif;
+      border: 1px solid #333;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      width: 220px;
+      animation: slideIn 0.3s ease-out;
     }
+    @keyframes slideIn { from { transform: translateY(100px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+    #${UI_ID} button {
+      background: #007bff;
+      color: white;
+      border: none;
+      padding: 8px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+    #${UI_ID} button:hover { background: #0056b3; }
+    #${UI_ID} .close-btn {
+      position: absolute;
+      top: 5px;
+      right: 8px;
+      cursor: pointer;
+      font-size: 14px;
+      color: #888;
+    }
+  `;
+  document.head.appendChild(style);
 };
 
-// Verificar si venimos de una redirección previa
-chrome.storage.local.get(['procesando'], (res) => {
-    if (res.procesando && window.location.href.includes('/slow_download/')) {
-        buscarYDescargar();
-    }
+// --- LÓGICA DE BÚSQUEDA ---
+
+const iniciarDescargaAutomatica = () => {
+  const items = document.querySelectorAll('li');
+  const targetLi = Array.from(items).find(li => 
+    li.textContent.toLowerCase().includes("no waitlist,") && 
+    li.querySelector('a.js-download-link')
+  );
+
+  if (targetLi) {
+    const link = targetLi.querySelector('a.js-download-link');
+    chrome.storage.local.set({ procesando_aa: true }, () => {
+      window.location.href = link.href;
+    });
+  } else {
+    alert("No se encontró un servidor 'no waitlist' disponible.");
+  }
+};
+
+const buscarBotonFinal = () => {
+  const link = Array.from(document.querySelectorAll('a'))
+    .find(a => a.textContent.trim().toLowerCase().includes("download now"));
+
+  if (link) {
+    chrome.storage.local.set({ procesando_aa: false });
+    window.location.href = link.href;
+  } else {
+    setTimeout(buscarBotonFinal, 2000);
+  }
+};
+
+// --- INTERFAZ DE USUARIO ---
+
+const mostrarSugerencia = () => {
+  if (document.getElementById(UI_ID)) return;
+  injectStyles();
+
+  const container = document.createElement("div");
+  container.id = UI_ID;
+  container.innerHTML = `
+    <span class="close-btn">✕</span>
+    <div style="font-size: 14px; margin-bottom: 5px;">📖 <b>Libro detectado</b></div>
+    <div style="font-size: 12px; color: #ccc;">¿Intento iniciar la descarga por un servidor sin lista de espera?</div>
+    <button id="aa-start-btn">Iniciar descarga</button>
+  `;
+
+  document.body.appendChild(container);
+
+  container.querySelector(".close-btn").onclick = () => container.remove();
+  container.querySelector("#aa-start-btn").onclick = () => {
+    container.innerHTML = `<div style="font-size: 13px; text-align: center;">🔍 Buscando servidor...</div>`;
+    iniciarDescargaAutomatica();
+  };
+};
+
+// --- CICLO DE VIDA ---
+
+// 1. Si estamos en página de libro, mostrar sugerencia
+if (window.location.pathname.includes("/md5/")) {
+  // Esperar un poco para que la página cargue bien antes de mostrar el popup
+  setTimeout(mostrarSugerencia, 1000);
+}
+
+// 2. Si venimos de una redirección, buscar el link final
+chrome.storage.local.get(['procesando_aa'], (res) => {
+  if (res.procesando_aa && window.location.pathname.includes('/slow_download/')) {
+    buscarBotonFinal();
+  }
 });
 
-// --- PASO 1: BUSCAR EL LINK SIN ESPERA ---
+// 3. Escuchar mensaje del icono de la barra
 chrome.runtime.onMessage.addListener((request) => {
-    if (request.action === "INICIAR") {
-        console.log("Buscando servidor sin lista de espera...");
-
-        // 1. Buscamos todos los elementos de lista (li)
-        const items = document.querySelectorAll('li');
-        
-        // 2. Filtramos el que tenga el texto "no waitlist," y que dentro tenga un link
-        const targetLi = Array.from(items).find(li => 
-            li.textContent.toLowerCase().includes("no waitlist,") && 
-            li.querySelector('a.js-download-link')
-        );
-
-        if (targetLi) {
-            const link = targetLi.querySelector('a.js-download-link');
-            console.log("Servidor encontrado:", link.textContent);
-            
-            chrome.storage.local.set({ procesando: true }, () => {
-                window.location.href = link.href;
-            });
-        } else {
-            alert("No se encontró ningún servidor con la etiqueta 'no waitlist'.");
-        }
-    }
+  if (request.action === "INICIAR_PROCESO") {
+    iniciarDescargaAutomatica();
+  }
 });
