@@ -1,4 +1,4 @@
-# Anna's Archive Helper 📚⚡
+# Anna's Archive Downloader 📚⚡
 
 Extensión de Chrome diseñada para agilizar y automatizar el proceso de descarga en Anna's Archive, priorizando servidores sin lista de espera.
 
